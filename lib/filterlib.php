@@ -1099,6 +1099,28 @@ function filter_preload_activities(course_modinfo $modinfo) {
     list ($sql, $params) = $DB->get_in_or_equal($cmcontextids);
     $filterconfigs = $DB->get_records_select('filter_config', "contextid $sql", $params);
 
+    // Save here a snapshot of the the order in which filters have to be applied,
+    // since this will be lost in the manipulations to determine the correct state in the correct context:
+    // An array obtained by the records of non disabled filters at context level.
+    // The outer manipulation is only to bring the array in the form
+    // matching the output of the manipulations to come.
+    $filtersorted = array_map(
+        function() {
+            return array();
+        },
+        array_flip(
+            array_map(
+                function($x) {
+                    return $x->filter;
+                },
+                array_filter($filteractives,
+                function($x) {
+                    return ($x->contextid == 1) && ($x->active != TEXTFILTER_DISABLED);
+                })
+            )
+        )
+    );
+
     // Note: I was a bit surprised that filter_config only works for the
     // most specific context (i.e. it does not need to be checked for course
     // context if we only care about CMs) however basede on code in
@@ -1150,6 +1172,15 @@ function filter_preload_activities(course_modinfo $modinfo) {
         }
     }
 
+    // The above manipulations lost track of the order in which filters should be applied.
+    // Use the snapshot $filtersorted to reestablish order filters at course level.
+    $courseactivesorted = array_filter($filtersorted,
+        function($k) use($courseactive) {
+            return array_key_exists($k, $courseactive);
+        },
+        ARRAY_FILTER_USE_KEY
+    );
+
     // Loop through the contexts to reconstruct filter_active lists for each
     // cm on the course.
     if (!isset($FILTERLIB_PRIVATE->active)) {
@@ -1157,7 +1188,7 @@ function filter_preload_activities(course_modinfo $modinfo) {
     }
     foreach ($cmcontextids as $contextid) {
         // Copy course list.
-        $FILTERLIB_PRIVATE->active[$contextid] = $courseactive;
+        $FILTERLIB_PRIVATE->active[$contextid] = $courseactivesorted;
 
         // Are there any changes to the active list?
         if (array_key_exists($contextid, $remainingactives)) {
@@ -1166,6 +1197,15 @@ function filter_preload_activities(course_modinfo $modinfo) {
                     // If it's marked active for specific context, add entry
                     // (doesn't matter if one exists already).
                     $FILTERLIB_PRIVATE->active[$contextid][$row->filter] = array();
+                    // Adding some entries to $FILTERLIB_PRIVATE->active[$contextid]
+                    // we potentially loose the order of filters again:
+                    // Use also here the snapshot $filtersorted to reestablish this.
+                    $FILTERLIB_PRIVATE->active[$contextid] = array_filter($filtersorted,
+                        function($k) use($FILTERLIB_PRIVATE, $contextid) {
+                            return array_key_exists($k, $FILTERLIB_PRIVATE->active[$contextid]);
+                        },
+                        ARRAY_FILTER_USE_KEY
+                    );
                 } else {
                     // If it's marked inactive, remove entry (doesn't matter
                     // if it doesn't exist).
