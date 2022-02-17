@@ -1085,6 +1085,13 @@ function filter_preload_activities(course_modinfo $modinfo) {
     list ($sql, $params) = $DB->get_in_or_equal($cmcontextids);
     $filterconfigs = $DB->get_records_select('filter_config', "contextid $sql", $params);
 
+    // Keep track of the correct order in which the filters have to be applied.
+    // Do not take into account the ones that are disabled at system level.
+    // Bring the array straight away in the form that will be needed to reestablish the order later.
+    $filtersorted = array_map(fn(): array => array(), array_flip(array_map(fn($x): string => $x->filter,
+        array_filter($filteractives, fn($x): bool => ($x->contextid == 1) && ($x->active != TEXTFILTER_DISABLED))
+    )));
+
     // Note: I was a bit surprised that filter_config only works for the
     // most specific context (i.e. it does not need to be checked for course
     // context if we only care about CMs) however basede on code in
@@ -1136,6 +1143,12 @@ function filter_preload_activities(course_modinfo $modinfo) {
         }
     }
 
+    // Reestablish at course level the order in which filters should be applied.
+    $courseactivesorted = array_filter($filtersorted,
+        fn($k): bool => array_key_exists($k, $courseactive),
+        ARRAY_FILTER_USE_KEY
+    );
+
     // Loop through the contexts to reconstruct filter_active lists for each
     // cm on the course.
     if (!isset($FILTERLIB_PRIVATE->active)) {
@@ -1143,7 +1156,7 @@ function filter_preload_activities(course_modinfo $modinfo) {
     }
     foreach ($cmcontextids as $contextid) {
         // Copy course list.
-        $FILTERLIB_PRIVATE->active[$contextid] = $courseactive;
+        $FILTERLIB_PRIVATE->active[$contextid] = $courseactivesorted;
 
         // Are there any changes to the active list?
         if (array_key_exists($contextid, $remainingactives)) {
@@ -1152,6 +1165,11 @@ function filter_preload_activities(course_modinfo $modinfo) {
                     // If it's marked active for specific context, add entry
                     // (doesn't matter if one exists already).
                     $FILTERLIB_PRIVATE->active[$contextid][$row->filter] = array();
+                    // We need to sort $FILTERLIB_PRIVATE->active[$contextid] again, in case we added something new
+                    $FILTERLIB_PRIVATE->active[$contextid] = array_filter($filtersorted,
+                        fn ($k): bool => array_key_exists($k, $FILTERLIB_PRIVATE->active[$contextid]),
+                        ARRAY_FILTER_USE_KEY
+                    );
                 } else {
                     // If it's marked inactive, remove entry (doesn't matter
                     // if it doesn't exist).

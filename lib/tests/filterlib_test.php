@@ -653,6 +653,44 @@ class core_filterlib_testcase extends advanced_testcase {
         $this->assert_matches($modinfo, $activity1context, $activity2context);
     }
 
+    /**
+     * The test test_preload() checks if the result from the
+     * preloaded cache is the same as the result from calling the standard
+     * function filter_get_active_in_context without cache in many aspects but never
+     * looks at the order.
+     */
+    public function test_sorting_of_preload() {
+        global $FILTERLIB_PRIVATE;
+        $this->resetAfterTest();
+        $this->remove_all_filters_from_config();
+        [
+            'course' => $course,
+            'activity1context' => $activity1context,
+         ] = $this->setup_preload_activities_test();
+
+        // Setup fixture.
+        filter_set_global_state('one', TEXTFILTER_OFF);
+        filter_set_global_state('two', TEXTFILTER_OFF);
+        filter_set_global_state('three', TEXTFILTER_OFF);
+        // Here change the order, this simulates user behaviour and affects the order of rows in filter_active.
+        filter_set_local_state('two', $activity1context->id, TEXTFILTER_ON);
+        filter_set_local_state('three', $activity1context->id, TEXTFILTER_ON);
+        filter_set_local_state('one', $activity1context->id, TEXTFILTER_ON);
+
+        // Exercise SUT
+        $FILTERLIB_PRIVATE = new stdClass();
+        $filters = filter_get_active_in_context($activity1context);
+        // Get course and modinfo.
+        $modinfo = new course_modinfo($course, 2);
+        // Use preload cache...
+        $FILTERLIB_PRIVATE = new stdClass();
+        filter_preload_activities($modinfo);
+        $preloadedfilters = filter_get_active_in_context($activity1context);
+
+        // asserEquals is not enough
+        $this->assertSame($filters, $preloadedfilters);
+    }
+
     public function test_filter_delete_all_for_filter() {
         global $DB;
         $this->resetAfterTest();
