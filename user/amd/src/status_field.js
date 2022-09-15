@@ -64,6 +64,14 @@ const getStatusContainer = link => link.closest(Selectors.statusElement);
 const getUserEnrolmentIdFromLink = link => link.getAttribute('rel');
 
 /**
+ * Get a flag signalling wether the user is the current user from the specified link.
+ *
+ * @param {HTMLElement} link
+ * @returns {Number}
+ */
+ const getItsMeFromLink = link => link.getAttribute('itsme');
+
+/**
  * Register all event listeners for the status fields.
  *
  * @param {Number} contextId
@@ -149,6 +157,7 @@ const showEditDialogue = (link, getBody) => {
 const showUnenrolConfirmation = link => {
     const container = getStatusContainer(link);
     const userEnrolmentId = getUserEnrolmentIdFromLink(link);
+    const itsMe = getItsMeFromLink(link) === '1';
 
     ModalFactory.create({
         type: ModalFactory.types.SAVE_CANCEL,
@@ -179,7 +188,7 @@ const showUnenrolConfirmation = link => {
         // Display the delete confirmation modal.
         modal.show();
 
-        const stringData = [
+        const stringDataOtherUser = [
             {
                 key: 'unenrol',
                 component: 'enrol',
@@ -194,6 +203,23 @@ const showUnenrolConfirmation = link => {
                 }
             }
         ];
+
+        const stringDataCurrentUser = [
+            {
+                key: 'unenrolmeshort',
+                component: 'enrol',
+            },
+            {
+                key: 'unenrolconfirmme',
+                component: 'enrol',
+                param: {
+                    course: container.dataset.coursename,
+                    enrolinstancename: container.dataset.enrolinstancename,
+                }
+            }
+        ];
+
+        const stringData = itsMe ? stringDataCurrentUser : stringDataOtherUser;
 
         return Promise.all([Str.get_strings(stringData), modal]);
     })

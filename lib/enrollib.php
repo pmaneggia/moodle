@@ -2806,11 +2806,16 @@ abstract class enrol_plugin {
      * @return array An array of user_enrolment_actions
      */
     public function get_user_enrolment_actions(course_enrolment_manager $manager, $ue) {
+        global $USER;
+        $itsme = $USER->id === $ue->userid;
         $actions = [];
         $context = $manager->get_context();
         $instance = $ue->enrolmentinstance;
         $params = $manager->get_moodlepage()->url->params();
         $params['ue'] = $ue->id;
+        if($itsme) {
+            $params['itsme'] = 1;
+        }
 
         // Edit enrolment action.
         if ($this->allow_manage($instance) && has_capability("enrol/{$instance->enrol}:manage", $context)) {
@@ -2833,6 +2838,7 @@ abstract class enrol_plugin {
             $actionparams = [
                 'class' => 'unenrollink',
                 'rel' => $ue->id,
+                'itsme' => $itsme,
                 'data-action' => ENROL_ACTION_UNENROL
             ];
             $actions[] = new user_enrolment_action($icon, $title, $url, $actionparams);
