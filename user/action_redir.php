@@ -230,6 +230,11 @@ if ($formaction == 'bulkchange.php') {
         };
         $filteredusers = array_filter($users, $matchesplugin);
 
+        // The current user should not be in this list if we are deleting enrolments:
+        if ($operationname === 'deleteselectedusers') {
+            unset($filteredusers[$USER->id]);
+        }
+
         if (empty($filteredusers)) {
             redirect($returnurl, get_string('noselectedusers', 'bulkusers'));
         }
