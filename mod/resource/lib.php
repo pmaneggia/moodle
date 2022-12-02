@@ -271,11 +271,12 @@ function resource_cm_info_view(cm_info $cm) {
     global $CFG;
     require_once($CFG->dirroot . '/mod/resource/locallib.php');
 
-    $resource = (object) ['displayoptions' => $cm->customdata['displayoptions']];
-    $details = resource_get_optional_details($resource, $cm);
-    if ($details) {
-        $cm->set_after_link(' ' . html_writer::tag('span', $details,
-                array('class' => 'resourcelinkdetails')));
+    if (is_array($cm->customdata)) {
+        $resource = (object) ['displayoptions' => $cm->customdata['displayoptions']];
+        $details = resource_get_optional_details($resource, $cm);
+        if ($details) {
+            $cm->set_after_link(' ' . html_writer::tag('span', $details, ['class' => 'resourcelinkdetails']));
+        }
     }
 }
 
