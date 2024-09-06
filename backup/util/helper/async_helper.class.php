@@ -143,7 +143,12 @@ class async_helper  {
         // Get activity context only for backups.
         if ($this->backuprec->type == 'activity' && $this->type == 'backup') {
             $context = context_module::instance($this->backuprec->itemid);
-        } else { // Course or Section which have the same context getter.
+        } else if ($this->backuprec->type == 'section' && $this->type == 'backup') {
+            // As long as a section does not have its own context, get the course context.
+            global $DB;
+            $courseid = $DB->get_record('course_sections', ['id' => $this->backuprec->itemid], 'course')->course;
+            $context = context_course::instance($courseid);
+        } else { // Course or restore.
             $context = context_course::instance($this->backuprec->itemid);
         }
 
