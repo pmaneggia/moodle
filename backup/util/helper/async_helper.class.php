@@ -137,13 +137,16 @@ class async_helper  {
     /**
      * Get the link to the resource that is being backuped or restored.
      *
-     * @return moodle_url $url The link to the resource.
+     * @return ?moodle_url $url The link to the resource.
      */
-    private function get_resource_link() {
+    private function get_resource_link(): ?moodle_url {
         // Get activity context only for backups.
         if ($this->backuprec->type == 'activity' && $this->type == 'backup') {
             $context = context_module::instance($this->backuprec->itemid);
-        } else { // Course or Section which have the same context getter.
+        } else if ($this->backuprec->type == 'section' && $this->type == 'backup') {
+            // Backup of a section, no url needed, there is no UI for this case.
+            return null;
+        } else { // Course or restore.
             $context = context_course::instance($this->backuprec->itemid);
         }
 
